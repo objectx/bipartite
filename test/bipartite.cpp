@@ -1,4 +1,6 @@
-
+//
+// Copyright (c) 2020 Masashi Fujita. All rights reserved.
+//
 #include "doctest-rapidcheck.hpp"
 #include <bipartite.hpp>
 

@@ -1,3 +1,7 @@
+//
+// Copyright (c) 2020 Masashi Fujita. All rights reserved.
+//
+
 /// @brief Helper function for using the `rapidcheck` under the `doctest`.
 #pragma once
 

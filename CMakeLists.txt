@@ -1,3 +1,6 @@
+#
+# Copyright (c) 2020 Masashi Fujita. All rights reserved.
+#
 
 cmake_minimum_required (VERSION 3.17)
 
