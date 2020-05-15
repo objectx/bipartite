@@ -1,4 +1,4 @@
-
+/// @brief Helper function for using the `rapidcheck` under the `doctest`.
 #pragma once
 
 #include <doctest/doctest.h>

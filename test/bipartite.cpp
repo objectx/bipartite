@@ -8,6 +8,7 @@
 #include <cstring>
 #include <map>
 #include <ostream>
+#include <sstream>
 #include <vector>
 
 namespace {
@@ -36,7 +37,7 @@ TEST_CASE ("Examples"
         std::array<const char *, 8> src = {"a", "b", "c", "d", "--dt-e", "--dt-f", "-g", "h"};
         std::array<const char *, 8> dst {src};
         auto start = bipartite (dst.begin (), dst.end (), is_doctest_argument);
-        CHECK_EQ (start, dst.begin() + 6);
+        CHECK_EQ (start, dst.begin () + 6);
         CHECK_EQ (dst[0], src[0]);
         CHECK_EQ (dst[1], src[1]);
         CHECK_EQ (dst[2], src[2]);
@@ -83,7 +84,8 @@ namespace {
     rc::Gen<std::string> genOption () {
         return rc::gen::apply ([] (const std::string &pfx, const std::string &opt) {
             return pfx + opt;
-        }, genSpecial (), genOpt ());
+        },
+                               genSpecial (), genOpt ());
     }
 
     template <typename Iter_>
@@ -92,10 +94,17 @@ namespace {
             return;
         }
         auto it = b;
-        os << *it++;
+        os << '"' << *it++ << '"' ;
         while (it != e) {
-            os << " " << *it++;
+            os << ", \"" << *it++ << '"';
         }
+    }
+
+    template <typename Iter_>
+    std::string dump (Iter_ b, Iter_ e) {
+        std::stringstream ss;
+        dump (ss, b, e);
+        return ss.str ();
     }
 }// namespace
 
@@ -112,6 +121,7 @@ TEST_CASE ("Test bipartite property"
         }
         auto is_spl = [] (auto const &s) -> bool { return is_special_option (s.c_str ()); };
         auto start  = bipartite (opts.begin (), opts.end (), is_spl);
+        RC_LOG () << "bipartited: " << dump (opts.begin (), opts.end ());
         auto cntSpl = std::count_if (src.begin (), src.end (), is_spl);
         // dump (std::cout, opts.cbegin (), opts.cend ());
         // Total # of options should be same.
