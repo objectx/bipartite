@@ -15,12 +15,13 @@ namespace {
         return strncmp (s, "--dt-", 5) == 0;
     }
 }// namespace
-TEST_CASE ("Examples") {
+TEST_CASE ("Examples"
+           * doctest::test_suite ("example")) {
     SUBCASE ("no doctest args") {
         std::array<const char *, 8> src = {"a", "b", "c", "d", "e", "f", "g", "h"};
         std::array<const char *, 8> dst {src};
-        auto start = skimArguments (dst.size (), dst.data (), is_doctest_argument);
-        CHECK_EQ (start, 8);
+        auto start = bipartite (dst.begin (), dst.end (), is_doctest_argument);
+        CHECK_EQ (start, dst.end ());
         CHECK_EQ (dst[0], src[0]);
         CHECK_EQ (dst[1], src[1]);
         CHECK_EQ (dst[2], src[2]);
@@ -34,8 +35,8 @@ TEST_CASE ("Examples") {
     SUBCASE ("non changing") {
         std::array<const char *, 8> src = {"a", "b", "c", "d", "--dt-e", "--dt-f", "-g", "h"};
         std::array<const char *, 8> dst {src};
-        auto start = skimArguments (dst.size (), dst.data (), is_doctest_argument);
-        CHECK_EQ (start, 6);
+        auto start = bipartite (dst.begin (), dst.end (), is_doctest_argument);
+        CHECK_EQ (start, dst.begin() + 6);
         CHECK_EQ (dst[0], src[0]);
         CHECK_EQ (dst[1], src[1]);
         CHECK_EQ (dst[2], src[2]);
@@ -50,8 +51,8 @@ TEST_CASE ("Examples") {
         std::array<const char *, 8> src = {"a", "--dt-b", "c", "--dt-d", "e", "--dt-f", "g", "--dt-h"};
         // std::array<const char *, 8> src = {"a", "c", "e", "g", "--dt-b", "--dt-d", "--dt-f", "--dt-h"};
         std::array<const char *, 8> dst {src};
-        auto start = skimArguments (dst.size (), dst.data (), is_doctest_argument);
-        CHECK_EQ (start, 4);
+        auto start = bipartite (dst.begin (), dst.end (), is_doctest_argument);
+        CHECK_EQ (start, dst.begin () + 4);
         CHECK_EQ (dst[0], src[0]);
         CHECK_EQ (dst[1], src[2]);
         CHECK_EQ (dst[2], src[4]);
@@ -82,8 +83,7 @@ namespace {
     rc::Gen<std::string> genOption () {
         return rc::gen::apply ([] (const std::string &pfx, const std::string &opt) {
             return pfx + opt;
-        },
-                               genSpecial (), genOpt ());
+        }, genSpecial (), genOpt ());
     }
 
     template <typename Iter_>
@@ -99,49 +99,9 @@ namespace {
     }
 }// namespace
 
-
-TEST_CASE ("Property") {
-    rc::prop ("test skimArguments property", [] {
-        auto const src = *rc::gen::unique<std::vector<std::string>> (genOption ());
-        std::map<std::string, size_t> dict;
-        std::vector<const char *> opts;
-        opts.reserve (src.size ());
-        for (auto const &s : src) {
-            dict.try_emplace (s, opts.size ());
-            opts.emplace_back (s.c_str ());
-        }
-        auto start  = skimArguments (opts.size (), opts.data (), is_special_option);
-        auto cntSpl = std::count_if (src.begin (), src.end (), [] (auto const &s) { return is_special_option (s.c_str ()); });
-        if (false) {
-            dump (std::cout, opts.cbegin (), opts.cend ());
-        }
-        // Total # of options should be same.
-        RC_ASSERT ((start + cntSpl) == src.size ());
-        int prevIndex = -1;
-        for (int i = 0; i < start; ++i) {
-            std::string k {opts[i]};
-            // Should be a normal option.
-            RC_ASSERT_FALSE (is_special_option (opts[i]));
-            auto it = dict.find (k);
-            // Order of option should be preserved.
-            RC_ASSERT (it != dict.end ());
-            RC_ASSERT (prevIndex < static_cast<int> (it->second));
-            prevIndex = static_cast<int> (it->second);
-        }
-        prevIndex = -1;
-        for (int i = start; i < opts.size (); ++i) {
-            std::string k {opts[i]};
-            RC_ASSERT (is_special_option (opts[i]));
-            auto it = dict.find (k);
-            RC_ASSERT (it != dict.end ());
-            RC_ASSERT (prevIndex < static_cast<int> (it->second));
-            prevIndex = static_cast<int> (it->second);
-        }
-    });
-}
-
-TEST_CASE ("Split") {
-    rc::prop ("prop", [] {
+TEST_CASE ("Test bipartite property"
+           * doctest::test_suite ("property")) {
+    rc::prop ("property", [] {
         auto const src = *rc::gen::unique<std::vector<std::string>> (genOption ());
         std::map<std::string, size_t> dict;
         std::vector<std::string> opts;
@@ -150,30 +110,40 @@ TEST_CASE ("Split") {
             dict.try_emplace (s, opts.size ());
             opts.emplace_back (s);
         }
-        auto start  = split (opts.begin(), opts.end (), [](auto const &s) { return is_special_option (s.c_str ()); });
-        auto cntSpl = std::count_if (src.begin (), src.end (), [] (auto const &s) { return is_special_option (s.c_str ()); });
-        if (false) {
-            dump (std::cout, opts.cbegin (), opts.cend ());
-        }
+        auto is_spl = [] (auto const &s) -> bool { return is_special_option (s.c_str ()); };
+        auto start  = bipartite (opts.begin (), opts.end (), is_spl);
+        auto cntSpl = std::count_if (src.begin (), src.end (), is_spl);
+        // dump (std::cout, opts.cbegin (), opts.cend ());
         // Total # of options should be same.
         RC_ASSERT (std::distance (start, opts.end ()) == cntSpl);
-        int prevIndex = -1;
-        for (auto it = opts.begin (); it != start; ++it) {
-            // Should be a normal option.
-            RC_ASSERT_FALSE (is_special_option (it->c_str ()));
-            auto e = dict.find (*it);
-            // Order of option should be preserved.
-            RC_ASSERT (e != dict.end ());
-            RC_ASSERT (prevIndex < static_cast<int> (e->second));
-            prevIndex = static_cast<int> (e->second);
+
+        if (opts.begin () != start) {
+            // Normal options existed.
+            for (auto it = opts.begin (); it != start; ++it) {
+                // Should be a normal option.
+                RC_ASSERT_FALSE (is_special_option (it->c_str ()));
+            }
+            // Relative order of two normal options are same as original.
+            for (auto it = opts.begin (); it != (start - 1); ++it) {
+                auto e0 = dict.find (*it);
+                RC_ASSERT (e0 != dict.end ());
+                auto e1 = dict.find (*(it + 1));
+                RC_ASSERT (e1 != dict.end ());
+                RC_ASSERT (e0->second < e1->second);
+            }
         }
-        prevIndex = -1;
-        for (auto it = start ; it != opts.end (); ++it) {
-            RC_ASSERT (is_special_option (it->c_str()));
-            auto e = dict.find (*it);
-            RC_ASSERT (e != dict.end ());
-            RC_ASSERT (prevIndex < static_cast<int> (e->second));
-            prevIndex = static_cast<int> (e->second);
+        if (start != opts.end ()) {
+            for (auto it = start; it != opts.end (); ++it) {
+                // Should be a normal option.
+                RC_ASSERT (is_special_option (it->c_str ()));
+            }
+            for (auto it = start; it != (opts.end () - 1); ++it) {
+                auto e0 = dict.find (*it);
+                RC_ASSERT (e0 != dict.end ());
+                auto e1 = dict.find (*(it + 1));
+                RC_ASSERT (e1 != dict.end ());
+                RC_ASSERT (e0->second < e1->second);
+            }
         }
     });
 }

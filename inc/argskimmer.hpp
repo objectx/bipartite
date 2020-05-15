@@ -4,35 +4,15 @@
 #include <cstdint>
 #include <algorithm>
 
-/// @brief Move arguments which makes `pred (a)` is true toward the end.
-/// @tparam F_
-/// @param argc
-/// @param argv
-/// @param pred
-/// @return
-template <typename F_>
-int skimArguments (int argc, const char **argv, F_ &&pred) {
-    if (argc <= 0) {
-        return argc;
-    }
-    int i = 0;
-    int cnt = 0;    // # of skimmed
-    while (i < (argc - cnt)) {
-        auto ap = argv[i];
-        if (pred (ap)) {
-            // moves argv [i + 1...argc - 1]
-            memmove (&argv[i], &argv[i + 1], (argc - i - 1) * sizeof (argv[0]));
-            argv[argc - 1] = ap;
-            ++cnt;
-            continue;
-        }
-        ++i;
-    }
-    return argc - cnt;
-}
-
+/// @brief Bipartite the sequence.
+/// @tparam Iter_ The iterator type. Should satisfy the LegacyRandomAccessIterator.
+/// @tparam F_ The predicate type
+/// @param b Start of the sequence
+/// @param e End of the sequence
+/// @param pred The predicate
+/// @return An iterator pointing the start of the sequence which make the `pred ()` true.
 template <typename Iter_, typename F_>
-    Iter_ split (Iter_ b, Iter_ e, F_ &&pred) {
+    Iter_ bipartite (Iter_ b, Iter_ e, F_ &&pred) {
         if (b == e) {
             return e;
         }
