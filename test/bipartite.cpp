@@ -1,6 +1,6 @@
 
 #include "doctest-rapidcheck.hpp"
-#include <argskimmer.hpp>
+#include <bipartite.hpp>
 
 #include <doctest/doctest.h>
 
